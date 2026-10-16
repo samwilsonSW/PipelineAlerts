@@ -8,6 +8,7 @@ namespace PipelineAlerts.Sources.Anr;
 public static class AnrXmlParser
 {
     private static readonly XNamespace Ns = "Notices";
+    // NAESB time zone standard is to use CCT, which is CST OR CDT, depending on the time of year
     private static readonly TimeZoneInfo Central = TimeZoneInfo.FindSystemTimeZoneById("America/Chicago");
 
     private const string PostedFormat = "M/d/yyyy h:mm:ss tt";
