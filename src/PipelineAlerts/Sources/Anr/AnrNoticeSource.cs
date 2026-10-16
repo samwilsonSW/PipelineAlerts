@@ -8,10 +8,11 @@ public sealed class AnrNoticeSource : INoticeSource
 {
     private const string BaseUrl = "https://ebb.tceconnects.com/infopost/ReportViewer.aspx?/InfoPost/Notices";
     private const string XmlFormat = "&rs:Format=XML";
+    private const string AssetNbr = "3005"; // ANR's pipeline number on the site
 
-    // The page a person can open in a browser; adding XmlFormat gives the machine-readable report.
-    private static readonly Uri CriticalPage = new(BaseUrl + "&assetNbr=3005&CritFlag=1");
-    private static readonly Uri OutagePage = new(BaseUrl + "&assetNbr=3005&CritFlag=-1&NoticeType=25");
+    // The two reports, as machine-readable XML.
+    private const string CriticalUrl = BaseUrl + "&assetNbr=" + AssetNbr + "&CritFlag=1" + XmlFormat;
+    private const string OutageUrl = BaseUrl + "&assetNbr=" + AssetNbr + "&CritFlag=-1&NoticeType=25" + XmlFormat;
 
     private readonly HttpClient _http;
 
@@ -23,11 +24,11 @@ public sealed class AnrNoticeSource : INoticeSource
     public async Task<IReadOnlyList<Notice>> FetchAsync(CancellationToken ct)
     {
         // Each report takes several seconds to generate, so request both at once.
-        var critical = FetchListAsync(CriticalPage, ct);
-        var outage = FetchListAsync(OutagePage, ct);
+        var critical = FetchListAsync(CriticalUrl, ct);
+        var outage = FetchListAsync(OutageUrl, ct);
         await Task.WhenAll(critical, outage);
 
-        // The lists overlap. Critical comes first, so a notice on both keeps the Critical copy and link.
+        // The lists overlap. Critical comes first, so a notice on both keeps the Critical copy (the link is the same either way).
         var merged = new List<Notice>();
         var seen = new HashSet<string>();
         foreach (var notice in (await critical).Concat(await outage))
@@ -38,9 +39,8 @@ public sealed class AnrNoticeSource : INoticeSource
         return merged;
     }
 
-    private async Task<IReadOnlyList<Notice>> FetchListAsync(Uri page, CancellationToken ct)
+    private async Task<IReadOnlyList<Notice>> FetchListAsync(string url, CancellationToken ct)
     {
-        var url = page.OriginalString + XmlFormat;
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.UserAgent.ParseAdd("PipelineAlerts/1.0");
 
@@ -62,7 +62,7 @@ public sealed class AnrNoticeSource : INoticeSource
                     $"ANR fetch failed for {url}: HTTP {(int)response.StatusCode} {response.ReasonPhrase}", null, response.StatusCode);
 
             var xml = await response.Content.ReadAsStringAsync(ct);
-            return AnrXmlParser.Parse(xml, page);
+            return AnrXmlParser.Parse(xml, AssetNbr);
         }
     }
 }

@@ -14,8 +14,7 @@ public class AnrNoticeSourceTests
     private const string Base = "https://ebb.tceconnects.com/infopost/ReportViewer.aspx?/InfoPost/Notices";
     private const string CriticalUrl = Base + "&assetNbr=3005&CritFlag=1&rs:Format=XML";
     private const string OutageUrl = Base + "&assetNbr=3005&CritFlag=-1&NoticeType=25&rs:Format=XML";
-    private const string CriticalPage = Base + "&assetNbr=3005&CritFlag=1";
-    private const string OutagePage = Base + "&assetNbr=3005&CritFlag=-1&NoticeType=25";
+    private const string NoticePage = "https://ebb.tceconnects.com/infopost/ReportViewer.aspx?/InfoPost/NoticesSubreport&pNoticeId=";
 
     /// <summary>
     /// Test helper: a fake HTTP handler. It serves a fixture file for each known URL, or a chosen error status,
@@ -69,8 +68,8 @@ public class AnrNoticeSourceTests
     }
 
     /// <summary>
-    /// Checks that notice 26306044, which is on both lists, appears once and keeps the Critical copy, so its
-    /// link points at the Critical list page. Critical is the more important list, so it wins ties.
+    /// Checks that notice 26306044, which is on both lists, appears once and links to its own notice page
+    /// (with AssetNbr=3005). Critical comes first so its copy is kept, but the link is the same from either list.
     /// </summary>
     [Fact]
     public async Task Notice_on_both_lists_keeps_critical_copy()
@@ -78,22 +77,22 @@ public class AnrNoticeSourceTests
         var notices = await FetchWith(new FakeHandler());
 
         var n = Assert.Single(notices, x => x.NoticeId == "26306044");
-        Assert.Equal(new Uri(CriticalPage), n.Link);
+        Assert.Equal(NoticePage + "26306044&AssetNbr=3005", n.Link.OriginalString);
     }
 
     /// <summary>
     /// Checks that a notice found only on the outage list ("CAPACITY REDUCTION Southwest Area", posted 10/12/2026)
-    /// is kept, links to the outage list page, and is not critical. This proves the outage list adds notices
-    /// the Critical list doesn't have, rather than being thrown away during the merge.
+    /// is kept, links to its own notice page (with AssetNbr=3005), and is not critical. This proves the outage list
+    /// adds notices the Critical list doesn't have, rather than being thrown away during the merge.
     /// </summary>
     [Fact]
-    public async Task Outage_only_notice_is_kept_with_outage_link()
+    public async Task Outage_only_notice_is_kept_with_own_link()
     {
         var notices = await FetchWith(new FakeHandler());
 
         var n = Assert.Single(notices, x =>
             x.Subject == "CAPACITY REDUCTION Southwest Area" && x.PostedUtc.Date == new DateTime(2026, 10, 12));
-        Assert.Equal(new Uri(OutagePage), n.Link);
+        Assert.Equal(NoticePage + n.NoticeId + "&AssetNbr=3005", n.Link.OriginalString);
         Assert.False(n.IsCritical);
     }
 
