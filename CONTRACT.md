@@ -35,6 +35,7 @@ Everything after the Source works only with `Notice`. Adding a pipeline means wr
     PostedUtc       DateTimeOffset
     EffectiveUtc    DateTimeOffset?
     EndUtc          DateTimeOffset?
+    IsCritical      bool             Critical: "Y" or "N"
     Link            Uri              TBD: per-notice link if one exists, otherwise the notice list.
 
 All times are stored in UTC. ANR posts times in Central time (America/Chicago).
