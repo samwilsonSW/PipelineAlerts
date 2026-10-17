@@ -36,7 +36,7 @@ Everything after the Source works only with `Notice`. Adding a pipeline means wr
     EffectiveUtc    DateTimeOffset?
     EndUtc          DateTimeOffset?
     IsCritical      bool             Critical: "Y" or "N"
-    Link            Uri              TBD: per-notice link if one exists, otherwise the notice list.
+    Link            Uri              Link to actual notice (noticeId)
 
 All times are stored in UTC. ANR posts times in Central time (America/Chicago).
 
@@ -46,7 +46,11 @@ All times are stored in UTC. ANR posts times in Central time (America/Chicago).
     ISignalEvaluator  SignalResult Evaluate(Notice notice, DateTimeOffset nowUtc)
     INotifier         Task SendAsync(SignalResult signal, CancellationToken ct)
 
-    SignalResult(Notice Notice, bool IsSignal, IReadOnlyList<string> Reasons, string? Volume)
+    SignalResult
+        Notice      Notice
+        IsSignal    bool
+        Reasons     IReadOnlyList<string>
+        Volume      string?
 
 - Reasons always explains the decision, whether the notice matched or not.
 - Volume is kept exactly as written ("111 MMcf/d", "5,000 Dth"). No unit conversion.
@@ -55,12 +59,21 @@ All times are stored in UTC. ANR posts times in Central time (America/Chicago).
 
 A notice is a signal when all of these are true:
 
-1. Recent: posted in the last 3 days, or still in effect.
-2. Keyword: "force majeure", "outage" or "curtailment" in the subject or body. TBD: does the Type field count?
-3. Relevant: mentions Louisiana, Henry Hub, or a Henry Hub-linked pipeline or location. TBD: the list.
-4. TBD: only alert on the newest notice when one replaces another?
+1. Recent: posted in the last 3 days. The number of days is a setting (default 3, must be more than 0).
+2. Keyword: "force majeure", "outage" or "curtailment" in the subject or body, or "capacity reduction" in the subject. Not case sensitive.
+   - Remove "Non-Force Majeure" before checking for "force majeure". It's tariff wording, not an event.
+   - The Type field doesn't count. Every notice on the outage list has Type "Planned Service Outage".
+3. Relevant: the subject or body mentions Louisiana, Henry Hub, or a Henry Hub-linked pipeline:
+   Acadian, Columbia Gulf, Gulf South, Bridgeline, NGPL / Natural Gas Pipeline, Sea Robin,
+   Southern Natural, Texas Gas, Transco / Transcontinental, Trunkline, Jefferson Island, Sabine.
+   Source: Wikipedia's Henry Hub article. It's a starting list, not a complete one.
 
-Volume is reported if found. It is not required.
+Every rule adds a reason to Reasons, whether it passed or failed, e.g. "skipped: no Louisiana / Henry Hub mention".
+
+Volume is reported if found (a number followed by MMcf/d, Dth or MMBtu). It is not required.
+
+Not in v1:
+- Alerting only once per replaced chain. Doing that needs to store what was already sent. Replacements are linked by PriorNoticeId only, never by subject.
 
 ## When things go wrong
 
@@ -73,6 +86,9 @@ Volume is reported if found. It is not required.
     Base URL:                https://ebb.tceconnects.com/infopost/ReportViewer.aspx?/InfoPost/Notices
     Critical:                {Base URL}&assetNbr=3005&CritFlag=1&rs:Format=XML
     Planned Service Outage:  {Base URL}&assetNbr=3005&CritFlag=-1&NoticeType=25&rs:Format=XML
+    Notice page:             https://ebb.tceconnects.com/infopost/ReportViewer.aspx?/InfoPost/NoticesSubreport&pNoticeId={NoticeId}&AssetNbr=3005
+
+The site opens a notice by postback, so the notice page URL never shows in the address bar. AssetNbr is required: without it the page shows the wrong pipeline name.
 
 On the site: Informational Postings -> ANR Pipeline Company (ANR) -> Notices.
 We will get Critical and Planned Service Outages. You can see the manual download via Save Icon dropdown -> XML.
@@ -113,3 +129,5 @@ Plus one line per notice saying why it matched or was skipped. Format TBD.
 - Never send a real Slack message in tests.
 - Never push to main.
 - Done means it builds and the tests pass.
+- Don't change Models/ or Interfaces/.
+- When running the app, unset the webhook so nothing is sent: env -u SLACK_WEBHOOK_URL dotnet run ...

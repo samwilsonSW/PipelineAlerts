@@ -14,13 +14,17 @@ public static class AnrXmlParser
     private const string PostedFormat = "M/d/yyyy h:mm:ss tt";
     private const string ShortFormat = "M/d/yy h:mm:ss tt";
 
-    public static IReadOnlyList<Notice> Parse(string xml, Uri listLink)
+    // Opens one notice's own page on the ANR site, labelled with the pipeline given by AssetNbr.
+    private const string NoticeLinkFormat =
+        "https://ebb.tceconnects.com/infopost/ReportViewer.aspx?/InfoPost/NoticesSubreport&pNoticeId={0}&AssetNbr={1}";
+
+    public static IReadOnlyList<Notice> Parse(string xml, string assetNbr)
     {
         var doc = XDocument.Parse(xml);
-        return doc.Descendants(Ns + "Detail").Select(d => ParseDetail(d, listLink)).ToList();
+        return doc.Descendants(Ns + "Detail").Select(d => ParseDetail(d, assetNbr)).ToList();
     }
 
-    private static Notice ParseDetail(XElement detail, Uri listLink)
+    private static Notice ParseDetail(XElement detail, string assetNbr)
     {
         var id = Required(detail, "NoticeId", null);
         var item = detail.Descendants(Ns + "Item").SingleOrDefault()
@@ -44,7 +48,7 @@ public static class AnrXmlParser
             EffectiveUtc = OptionalDate(detail, "EffBeginDt", id),
             EndUtc = OptionalDate(detail, "EndDt", id),
             IsCritical = (string?)detail.Attribute("CriticalInd") == "Y",
-            Link = listLink,
+            Link = new Uri(string.Format(CultureInfo.InvariantCulture, NoticeLinkFormat, id, assetNbr)),
         };
     }
 

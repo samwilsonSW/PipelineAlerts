@@ -10,15 +10,15 @@ namespace PipelineAlerts.Tests.Sources;
 /// </summary>
 public class AnrXmlParserTests
 {
-    private static readonly Uri ListLink = new("https://ebb.tceconnects.com/infopost/ReportViewer.aspx?/InfoPost/Notices&assetNbr=3005");
+    private const string AssetNbr = "3005";
 
     /// <summary>
-    /// Test helper: loads a saved ANR report from the Fixtures folder and runs it through the parser.
-    /// Every parsed notice gets the same list link, so tests can check that value.
+    /// Test helper: loads a saved ANR report from the Fixtures folder and runs it through the parser
+    /// with ANR's asset number (3005), which the parser puts into each notice's link.
     /// Keeping this in one place means every test reads its fixture the same way.
     /// </summary>
     private static IReadOnlyList<Notice> ParseFixture(string name) =>
-        AnrXmlParser.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", name)), ListLink);
+        AnrXmlParser.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", name)), AssetNbr);
 
     /// <summary>
     /// Checks that the parser returns every notice in each saved report: 55 in the Critical list and 45 in
@@ -98,16 +98,32 @@ public class AnrXmlParserTests
     }
 
     /// <summary>
-    /// Checks that every notice in both saved reports carries the notice-list link it was given.
-    /// ANR has no per-notice web page we know of yet, so CONTRACT.md says to link to the list instead.
-    /// This catches any notice ending up with a missing or wrong link in the Slack alert.
+    /// Checks that every notice in both saved reports links to its own page on the ANR site: the notice page
+    /// address with that notice's own NoticeId and AssetNbr=3005. This catches notices sharing one link, or
+    /// a link that is missing the asset number (without it the site labels the notice as the wrong pipeline).
     /// </summary>
     [Theory]
     [InlineData("anr_critical.xml")]
     [InlineData("anr_pso.xml")]
-    public void Every_notice_links_to_the_list(string fixture)
+    public void Every_notice_links_to_its_own_page(string fixture)
     {
-        Assert.All(ParseFixture(fixture), n => Assert.Equal(ListLink, n.Link));
+        Assert.All(ParseFixture(fixture), n => Assert.Equal(
+            $"https://ebb.tceconnects.com/infopost/ReportViewer.aspx?/InfoPost/NoticesSubreport&pNoticeId={n.NoticeId}&AssetNbr=3005",
+            n.Link.OriginalString));
+    }
+
+    /// <summary>
+    /// Checks notice 26306044's link against the exact address, written out in full. The address was opened in a
+    /// browser and shows this notice as ANR, so this pins the link to one known-good value rather than a pattern.
+    /// </summary>
+    [Fact]
+    public void Known_notice_link_is_exact()
+    {
+        var n = ParseFixture("anr_critical.xml").Single(x => x.NoticeId == "26306044");
+
+        Assert.Equal(
+            "https://ebb.tceconnects.com/infopost/ReportViewer.aspx?/InfoPost/NoticesSubreport&pNoticeId=26306044&AssetNbr=3005",
+            n.Link.AbsoluteUri);
     }
 
     /// <summary>
@@ -118,7 +134,7 @@ public class AnrXmlParserTests
     [Fact]
     public void Malformed_xml_throws()
     {
-        Assert.ThrowsAny<Exception>(() => AnrXmlParser.Parse("<Report xmlns=\"Notices\"><Detail", ListLink));
+        Assert.ThrowsAny<Exception>(() => AnrXmlParser.Parse("<Report xmlns=\"Notices\"><Detail", AssetNbr));
     }
 
     /// <summary>
@@ -137,7 +153,7 @@ public class AnrXmlParserTests
             </Report>
             """;
 
-        var ex = Assert.Throws<FormatException>(() => AnrXmlParser.Parse(xml, ListLink));
+        var ex = Assert.Throws<FormatException>(() => AnrXmlParser.Parse(xml, AssetNbr));
         Assert.Contains("NoticeId", ex.Message);
     }
 }
