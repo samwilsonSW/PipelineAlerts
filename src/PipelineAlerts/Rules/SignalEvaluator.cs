@@ -72,7 +72,7 @@ public sealed class SignalEvaluator : ISignalEvaluator
         {
             foreach (var pipeline in HenryHubPipelines)
             {
-                if (Contains(text, pipeline))
+                if (text.Contains(pipeline, StringComparison.OrdinalIgnoreCase))
                 {
                     relevantName = pipeline;
                     break;
