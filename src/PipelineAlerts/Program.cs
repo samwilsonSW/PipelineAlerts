@@ -8,6 +8,9 @@ using PipelineAlerts.Notifiers;
 using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
 var source = new AnrNoticeSource(http);
 
+/// Lookback period for recent notices, in days. 
+const int lookbackDays = 3;
+
 // No SLACK_WEBHOOK_URL means dry run: print the Slack message instead of sending it.
 // The webhook URL is a secret; never print it.
 var webhookUrl = Environment.GetEnvironmentVariable("SLACK_WEBHOOK_URL");
@@ -33,7 +36,7 @@ Console.WriteLine($"Checking {source.Name} pipeline...");
 try
 {
     var notices = await source.FetchAsync(CancellationToken.None);
-    var evaluator = new SignalEvaluator();
+    var evaluator = new SignalEvaluator(lookbackDays);
 
     Console.WriteLine($"Found {notices.Count} notices.");
 

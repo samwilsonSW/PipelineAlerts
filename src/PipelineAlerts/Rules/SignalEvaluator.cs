@@ -43,7 +43,7 @@ public sealed class SignalEvaluator : ISignalEvaluator
         var posted = notice.PostedUtc.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         var isRecent = notice.PostedUtc >= nowUtc.AddDays(-_lookbackDays);
         reasons.Add(isRecent
-            ? $"recent: posted {posted}"
+            ? $"recent: posted {posted}, within {_lookbackDays} days"
             : $"skipped: posted {posted}, older than {_lookbackDays} days");
 
         // Rule 2, Keyword: "Non-Force Majeure" is tariff wording, not an event, so remove it first.
