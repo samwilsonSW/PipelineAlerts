@@ -1,10 +1,32 @@
 ﻿using PipelineAlerts.Sources.Anr;
 using PipelineAlerts.Models;
 using PipelineAlerts.Rules;
+using PipelineAlerts.Interfaces;
+using PipelineAlerts.Notifiers;
 
 // to run, use `dotnet run --project src/PipelineAlerts`
 using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
 var source = new AnrNoticeSource(http);
+
+// No SLACK_WEBHOOK_URL means dry run: print the Slack message instead of sending it.
+// The webhook URL is a secret; never print it.
+var webhookUrl = Environment.GetEnvironmentVariable("SLACK_WEBHOOK_URL");
+var isDryRun = string.IsNullOrWhiteSpace(webhookUrl);
+INotifier notifier;
+if (isDryRun)
+{
+    notifier = new ConsoleNotifier();
+}
+else if (Uri.TryCreate(webhookUrl!.Trim(), UriKind.Absolute, out var webhookUri)
+         && (webhookUri.Scheme == Uri.UriSchemeHttps || webhookUri.Scheme == Uri.UriSchemeHttp))
+{
+    notifier = new SlackNotifier(http, webhookUri);
+}
+else
+{
+    Console.Error.WriteLine("SLACK_WEBHOOK_URL is not a valid URL.");
+    return 1;
+}
 
 Console.WriteLine($"Checking {source.Name} pipeline...");
 
@@ -36,7 +58,19 @@ try
 
     if (signals.Count > 0)
     {
-        Console.WriteLine("Slack message sent.");
+        try
+        {
+            foreach (var signal in signals)
+            {
+                await notifier.SendAsync(signal, CancellationToken.None);
+                Console.WriteLine(isDryRun ? "Dry run: Slack message printed." : "Slack message sent.");
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            Console.Error.WriteLine($"Slack send failed: {ex.Message}");
+            return 1;
+        }
     }
     else
     {
