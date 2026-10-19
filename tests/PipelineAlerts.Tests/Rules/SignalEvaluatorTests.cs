@@ -105,7 +105,7 @@ public class SignalEvaluatorTests
         var result = Evaluate(MakeNotice("CAPACITY REDUCTION Southeast Mainline", "Work located in St. Mary Parish, Louisiana."));
 
         Assert.True(result.IsSignal);
-        Assert.Equal(["recent: posted 2026-10-14", "keyword: capacity reduction", "relevant: mentions Louisiana"], result.Reasons);
+        Assert.Equal(["recent: posted 2026-10-14, within 3 days", "keyword: capacity reduction", "relevant: mentions Louisiana"], result.Reasons);
     }
 
     /// <summary>
