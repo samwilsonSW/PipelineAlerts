@@ -119,8 +119,6 @@ Other pipelines on the same site (Columbia Gulf = 14, TC Louisiana = 3119) use t
     M trading signal(s) detected.
     Slack message sent.
 
-Plus one line per notice saying why it matched or was skipped. Format TBD.
-
 ## Rules for agents
 
 - Only change files relevant to the given task.
