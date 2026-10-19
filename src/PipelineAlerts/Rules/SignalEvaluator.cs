@@ -18,7 +18,7 @@ public sealed class SignalEvaluator : ISignalEvaluator
     // A starting list, not a complete one.
     private static readonly string[] HenryHubPipelines =
     [
-        "Acadian", "Columbia Gulf", "Gulf South", "Bridgeline", "NGPL", "Natural Gas Pipeline", "Sea Robin",
+        "Acadian", "Columbia Gulf", "Gulf South", "Bridgeline", "NGPL", "Natural Gas Pipeline Co", "Sea Robin",
         "Southern Natural", "Texas Gas", "Transco", "Transcontinental", "Trunkline", "Jefferson Island", "Sabine",
     ];
 
