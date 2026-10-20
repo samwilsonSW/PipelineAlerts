@@ -29,9 +29,21 @@ Check it's installed:
 
     dotnet --version    # should print 10.x
 
-Optional: connect a Slack workspace by setting an incoming webhook URL in the SLACK_WEBHOOK_URL environment variable
-    
+Connect a Slack workspace. To get a webhook URL:
+1) Create an app at https://api.slack.com/apps and pick your workspace
+2) Open Incoming Webhooks and turn it on
+3) Click "Add New Webhook to Workspace" and choose a channel
+4) Copy the URL (it starts with https://hooks.slack.com/services/)
+
+Slack's guide: https://docs.slack.dev/messaging/sending-messages-using-incoming-webhooks/
+
+Then set it in the SLACK_WEBHOOK_URL environment variable:
+
     export SLACK_WEBHOOK_URL='https://hooks.slack.com/services/XXX/YYY/ZZZ'
+
+Or on Windows (PowerShell):
+
+    $env:SLACK_WEBHOOK_URL = 'https://hooks.slack.com/services/XXX/YYY/ZZZ'
 
 If Slack webhook isn't set, the app runs in dry-run mode and prints the Slack message instead of sending it.
 
