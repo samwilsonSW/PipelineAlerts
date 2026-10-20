@@ -68,20 +68,26 @@ To run tests, use `dotnet test`
 - Failed fetches fail loudly with an error and exit code 1, so that a failed fetch is never mistaken as 0 notices.
 
 ## What could you extend for this project in production
-__More pipelines__: For full coverage of trading signals, you could write a new source for all Henry Hub-linked pipelines. Each pipeline gets its own `INoticeSource`, which turns that pipeline's format into the same `Notice`. The evaluator and notifier don't change. Pipelines on the same TC eConnects site (Columbia Gulf, TC Louisiana) use the same report, so they'd only need a different asset number (14 for Columbia Gulf, 3119 for TC Louisiana) in config, not new code.
+__More pipelines__: For full coverage of trading signals, you could write a new source for all Henry Hub-linked pipelines. Each pipeline gets its own `INoticeSource`, which turns that pipeline's format into the same `Notice`. Pipelines on the same TC eConnects site (Columbia Gulf, TC Louisiana) use the same report, so their sources would only need a different asset number (14 for Columbia Gulf, 3119 for TC Louisiana) in config.
 
-__Scheduling + storage__: The app can run on a schedule today (cron / Task Scheduler; it exits 1 on failure). Without memory it would re-alert the same notice every run, so the two options are a cron job matching a notice window (daily, lookbackDays = 1 which could result in a missed run and missed alerts) or a small record of sent NoticeIds. I'd use the record, keeping the 3-days lookback as a safety net. In this scenario, you could run every few minutes to be notified of a new notice indicating a trading signal almost immediately.
+A new source works with the current evaluator as-is, but each pipeline should have its own evaluator too. The current evaluator is tuned to ANR, which uses the phrase "Capacity Reduction" to indicate an impact to the regular flow. Different pipeline operators have different standard wordings, so you'd need to evaluate the available data for each one individually.
 
 __Config file__: Settings that are hardcoded today (the pipeline URLs and asset numbers, lookbackDays, the keyword and Henry Hub lists) would move into a config file like `appsettings.json`.
 
+__Scheduling + storage__: The app can run on a schedule today (cron / Task Scheduler; it exits 1 on failure). Without memory it would re-alert the same notice every run, so the two options are a cron job matching a notice window (daily, lookbackDays = 1 which could result in a missed run and missed alerts) or a small record of sent NoticeIds. I'd use the record, keeping the 3-day lookback as a safety net. In this scenario, you could run every few minutes to be notified of a new notice indicating a trading signal almost immediately.
+
+__Failure alerting__: Assuming you would run this with a cron job, you could send failed runs to a different Slack channel for developers, which would alert the necessary people. This would allow timely fixes in the case of things like a change in format or a service being broken or down. You would also want an alert if there hasn't been a successful run in a few hours, since a cron job that stops running doesn't fail, it just goes quiet.
+
+__Retries__: Retry the fetch with a delay a few times before failing, to handle any technical issues on ANR or TC eConnects' side. Sometimes ANR's report server is slow and results in errors.
+
+
 ## Known limitations
 
-- __Only the first volume is reported.__ Some notices list more than one cut. Notice 26252033 reduces Lake Arthur by 728 MMcf/d and Dugas by 1,100 MMcf/d, but only the 728 is shown. Getting every cut right means reading the pipeline's wording
+- __Only the first volume is reported.__ Some notices list more than one cut. Notice 26252033 reduces Lake Arthur by 728 MMcf/d and Dugas by 1,100 MMcf/d, but only the 728 is shown. Getting every cut right means reading the pipeline's wording.
 - __Relevance is a text match, not geography.__ A notice counts if it mentions Louisiana or a Henry Hub-linked pipeline by name. Notice 26250013 is about an interconnect in Joliet, Illinois, but names NGPL, so it passes the relevance rule.
 - __LNG terminals aren't covered.__ The brief mentions LNG export terminals, but the relevance list only has Louisiana, Henry Hub and linked pipelines. Adding terminal names is a small change.
 - __Most days there are no signals.__ With a 3-day window, ANR usually has nothing that passes all three rules. The one real signal in the saved data (26252033) was posted 9/23, so a demo needs a longer window (lookbackDays in `Program.cs`).
 - __No memory between runs.__ The same signal is sent again every run while it's inside the window, and superseded notices aren't linked.
-- __ANR only.__ The other TC eConnects pipelines need config, and other sites need their own source.
 
 ## How I used AI
 
